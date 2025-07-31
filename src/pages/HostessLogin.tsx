@@ -1,19 +1,51 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { ServiceSyncLogo } from '@/components/ServiceSyncLogo';
-import { LogIn, FileText, Clock, MapPin } from 'lucide-react';
+import { LogIn, FileText, Clock, MapPin, AlertCircle } from 'lucide-react';
 import { useServiceSync } from '@/contexts/ServiceSyncContext';
+import { useAuth } from '@/hooks/useAuth';
+import { ServiceSyncAPI } from '@/services/api';
 
 export const HostessLogin: React.FC = () => {
-  const { state, dispatch } = useServiceSync();
+  const { dispatch } = useServiceSync();
+  const { login, isLoading, error } = useAuth();
+  const [employeeId, setEmployeeId] = useState('H001'); // Pre-filled for demo
+  const [password, setPassword] = useState('password123'); // Pre-filled for demo
+  const [loginError, setLoginError] = useState<string | null>(null);
 
-  const handleLogin = () => {
-    dispatch({ type: 'SET_STEP', payload: 'kitchen-scan' });
-    dispatch({ 
-      type: 'ADD_TIMESTAMP', 
-      payload: { key: 'kitchenExit', value: new Date() }
-    });
+  const handleLogin = async () => {
+    setLoginError(null);
+    
+    const success = await login(employeeId, password);
+    
+    if (success) {
+      // Create a new delivery session
+      try {
+        const sessionResponse = await ServiceSyncAPI.createSession({
+          hospitalId: '123e4567-e89b-12d3-a456-426614174001', // General Hospital
+          wardId: '223e4567-e89b-12d3-a456-426614174001', // Ward 3A
+          mealType: 'breakfast',
+          mealCount: 12
+        });
+
+        if (sessionResponse.success) {
+          dispatch({ 
+            type: 'UPDATE_SESSION', 
+            payload: { 
+              sessionId: sessionResponse.session.session_id,
+              wardId: '3A'
+            }
+          });
+          dispatch({ type: 'SET_STEP', payload: 'kitchen-scan' });
+        }
+      } catch (error) {
+        setLoginError('Failed to create delivery session');
+      }
+    } else {
+      setLoginError(error || 'Login failed');
+    }
   };
 
   return (
@@ -28,38 +60,65 @@ export const HostessLogin: React.FC = () => {
           </div>
         </div>
 
-        {/* Employee Information Card */}
+        {/* Login Form */}
         <Card className="p-6 shadow-card animate-slide-up">
           <h2 className="text-xl font-bold text-foreground mb-4">Employee Login</h2>
           
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-1">
-                <label className="text-sm font-medium text-muted-foreground">Employee ID</label>
-                <div className="mt-1 p-3 bg-muted rounded-lg text-sm font-mono">
-                  {state.sessionData.hostessId}
-                </div>
-              </div>
-              <div className="col-span-2">
-                <label className="text-sm font-medium text-muted-foreground">Hostess Name</label>
-                <div className="mt-1 p-3 bg-muted rounded-lg text-sm font-semibold">
-                  {state.sessionData.hostessName}
-                </div>
-              </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Employee ID</label>
+              <Input
+                type="text"
+                value={employeeId}
+                onChange={(e) => setEmployeeId(e.target.value)}
+                placeholder="Enter Employee ID"
+                className="mt-1"
+              />
             </div>
 
             <div>
-              <label className="text-sm font-medium text-muted-foreground">Shift Schedule</label>
-              <div className="mt-1 p-3 bg-muted rounded-lg text-sm flex items-center gap-2">
-                <Clock className="w-4 h-4 text-primary" />
-                Morning Shift - 7:00 AM
-              </div>
+              <label className="text-sm font-medium text-muted-foreground">Password</label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter Password"
+                className="mt-1"
+              />
             </div>
+
+            {(loginError || error) && (
+              <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                <AlertCircle className="w-4 h-4 text-destructive" />
+                <span className="text-sm text-destructive">{loginError || error}</span>
+              </div>
+            )}
+
+            <Button 
+              onClick={handleLogin}
+              disabled={isLoading || !employeeId || !password}
+              size="mobile" 
+              variant="scanner"
+              className="w-full"
+            >
+              <LogIn className="w-5 h-5" />
+              {isLoading ? 'Logging in...' : '🔐 Login & Start Shift'}
+            </Button>
           </div>
         </Card>
 
-        {/* Hospital Assignment Card */}
-        <Card className="p-6 shadow-card border-l-4 border-primary animate-slide-up" style={{ animationDelay: '0.1s' }}>
+        {/* Demo Credentials */}
+        <Card className="p-4 shadow-card border-l-4 border-info animate-slide-up" style={{ animationDelay: '0.1s' }}>
+          <h3 className="font-bold text-foreground mb-2">🔑 Demo Credentials</h3>
+          <div className="text-sm space-y-1">
+            <p><strong>Hostess:</strong> H001 / password123</p>
+            <p><strong>Nurse:</strong> N001 / password123</p>
+            <p><strong>Admin:</strong> ADMIN001 / password123</p>
+          </div>
+        </Card>
+
+        {/* Hospital Assignment */}
+        <Card className="p-6 shadow-card border-l-4 border-primary animate-slide-up" style={{ animationDelay: '0.2s' }}>
           <div className="flex items-start gap-4">
             <MapPin className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
             <div>
@@ -68,38 +127,19 @@ export const HostessLogin: React.FC = () => {
                 <span className="font-semibold">General Hospital - Western Cape</span>
               </p>
               <p className="text-sm text-success font-medium">
-                ✅ Ward assignments ready for today
+                ✅ Ward 3A ready for breakfast service
               </p>
             </div>
           </div>
         </Card>
 
-        {/* Action Buttons */}
-        <div className="space-y-3 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-          <Button 
-            onClick={handleLogin}
-            size="mobile" 
-            variant="scanner"
-            className="w-full"
-          >
-            <LogIn className="w-5 h-5" />
-            🔐 Login & Start Shift
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            size="mobile"
-            className="w-full"
-          >
-            <FileText className="w-5 h-5" />
-            📋 View Previous Reports
-          </Button>
-        </div>
-
-        {/* Status Info */}
-        <div className="text-center text-sm text-muted-foreground animate-fade-in" style={{ animationDelay: '0.3s' }}>
-          Ready to begin meal delivery tracking
-        </div>
+        {/* System Status */}
+        <Card className="p-4 shadow-card animate-slide-up" style={{ animationDelay: '0.3s' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 bg-success rounded-full animate-pulse"></div>
+            <span className="text-sm font-medium text-success">Backend connected: localhost:3001</span>
+          </div>
+        </Card>
       </div>
     </div>
   );
