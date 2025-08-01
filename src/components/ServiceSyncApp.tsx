@@ -6,6 +6,9 @@ import { WardArrival } from '@/pages/WardArrival';
 import { DietSheet } from '@/pages/DietSheet';
 import { NurseAlert } from '@/pages/NurseAlert';
 import { ServiceComplete } from '@/pages/ServiceComplete';
+import { NurseStation } from '@/pages/NurseStation';
+import { ServiceProgress } from '@/pages/ServiceProgress';
+import { FullReport } from '@/pages/FullReport';
 
 export const ServiceSyncApp: React.FC = () => {
   const { state } = useServiceSync();
@@ -22,8 +25,14 @@ export const ServiceSyncApp: React.FC = () => {
         return <DietSheet />;
       case 'nurse-alert':
         return <NurseAlert />;
+      case 'nurse-station':
+        return <NurseStation />;
+      case 'service-progress':
+        return <ServiceProgress />;
       case 'completion':
         return <ServiceComplete />;
+      case 'full-report':
+        return <FullReport />;
       default:
         return <HostessLogin />;
     }
